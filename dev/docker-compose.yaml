@@ -1,0 +1,47 @@
+name: banco-digital
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: banco-digital-db
+    environment:
+      POSTGRES_DB: banco_digital
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d banco_digital -h localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - banco-digital
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - banco-digital
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    networks:
+      - banco-digital
+
+networks:
+  banco-digital:
+    name: banco-digital
+    driver: bridge
