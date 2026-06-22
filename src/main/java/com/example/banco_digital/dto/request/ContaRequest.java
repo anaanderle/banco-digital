@@ -10,8 +10,19 @@ import java.math.BigDecimal;
 @Schema(description = "Dados para abertura de uma conta")
 public record ContaRequest(
 
+        @NotBlank(message = "codigoBanco é obrigatório")
+        String codigoBanco,
+
         @NotBlank(message = "numeroConta é obrigatório")
         String numeroConta,
+
+        @NotBlank(message = "digitoConta é obrigatório")
+        String digitoConta,
+
+        @NotBlank(message = "numeroAgencia é obrigatório")
+        String numeroAgencia,
+
+        String digitoAgencia,
 
         @NotNull(message = "clienteId é obrigatório")
         Long clienteId,

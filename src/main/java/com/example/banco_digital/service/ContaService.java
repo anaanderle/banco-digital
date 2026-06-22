@@ -36,8 +36,14 @@ public class ContaService {
             throw new ResourceNotFoundException("Cliente não encontrado: id " + request.clienteId());
         }
 
-        if (contaRepository.existsByNumeroConta(request.numeroConta())) {
-            throw new ConflictException("Já existe conta com o número informado");
+        if (contaRepository.existsByCodigoBancoAndNumeroContaAndDigitoContaAndNumeroAgenciaAndDigitoAgencia(
+                request.codigoBanco(),
+                request.numeroConta(),
+                request.digitoConta(),
+                request.numeroAgencia(),
+                request.digitoAgencia()
+        )) {
+            throw new ConflictException("Já existe uma conta com o banco, a conta e a agência informados");
         }
 
         Conta conta = contaMapper.toEntity(request);

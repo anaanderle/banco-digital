@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface ContaRepository extends JpaRepository<Conta, Long> {
 
-    boolean existsByNumeroConta(String numeroConta);
+    boolean existsByCodigoBancoAndNumeroContaAndDigitoContaAndNumeroAgenciaAndDigitoAgencia(String codigoBanco, String numeroConta, String digitoConta, String numeroAgencia, String digitoAgencia);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<Conta> findByIdInOrderByIdAsc(@Param("ids") List<Long> ids);

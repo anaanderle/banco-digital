@@ -5,7 +5,11 @@ import java.time.OffsetDateTime;
 
 public record ContaResponse(
         Long id,
+        String codigoBanco,
         String numeroConta,
+        String digitoConta,
+        String numeroAgencia,
+        String digitoAgencia,
         BigDecimal saldo,
         Long clienteId,
         OffsetDateTime dataCriacao) {

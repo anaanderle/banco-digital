@@ -2,11 +2,11 @@ package com.example.banco_digital.integration;
 
 import com.example.banco_digital.TestcontainersConfiguration;
 import com.example.banco_digital.dto.request.ClienteRequest;
-import com.example.banco_digital.dto.request.ContaRequest;
 import com.example.banco_digital.dto.request.TransferenciaRequest;
 import com.example.banco_digital.entity.StatusTransacao;
 import com.example.banco_digital.entity.TipoMovimento;
 import com.example.banco_digital.helper.ClienteFactory;
+import com.example.banco_digital.helper.ContaFactory;
 import com.example.banco_digital.helper.TransferenciaApiClient;
 import com.example.banco_digital.repository.ContaRepository;
 import com.example.banco_digital.repository.HistoricoRepository;
@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, TransferenciaApiClient.class})
 class TransferenciaConcorrenciaTest {
 
     private static final int NUM_THREADS = 20;
@@ -70,10 +70,8 @@ class TransferenciaConcorrenciaTest {
 
         Long clienteId = clienteService.criar(new ClienteRequest("Cliente Concorrencia", ClienteFactory.gerarCpf())).id();
         BigDecimal saldoOrigem = VALOR.multiply(BigDecimal.valueOf(TRANSFERENCIAS_POSSIVEIS));
-        contaOrigemId = contaService.criar(
-                new ContaRequest("ORIG-" + System.nanoTime(), clienteId, saldoOrigem)).id();
-        contaDestinoId = contaService.criar(
-                new ContaRequest("DEST-" + System.nanoTime(), clienteId, BigDecimal.ZERO)).id();
+        contaOrigemId = contaService.criar(ContaFactory.gerarContaRequest(clienteId, saldoOrigem)).id();
+        contaDestinoId = contaService.criar(ContaFactory.gerarContaRequest(clienteId, BigDecimal.ZERO)).id();
     }
 
     @Test

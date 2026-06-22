@@ -30,7 +30,7 @@ public class ImportacaoController {
     }
 
     @PostMapping(value = "/contas", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Importa contas em massa (formato: numeroConta;clienteId;saldoInicial)")
+    @Operation(summary = "Importa contas em massa (formato: clienteId;saldoInicial;codigoBanco;numeroConta;digitoConta;numeroAgencia;digitoAgencia)")
     public ResponseEntity<ImportacaoResponse> importarContas(@RequestParam("arquivo") MultipartFile arquivo) {
         return ResponseEntity.ok(importacaoService.importarContas(arquivo));
     }

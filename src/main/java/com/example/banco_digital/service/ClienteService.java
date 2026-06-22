@@ -24,11 +24,19 @@ public class ClienteService {
         this.clienteMapper = clienteMapper;
     }
 
+    private void validarCpfSimples(String cpf) {
+        if (cpf.length() != 11 || !cpf.matches("[0-9]+")) {
+            throw new IllegalArgumentException("CPF deve conter 11 dígitos numéricos");
+        }
+    }
+
     @Transactional
     public ClienteResponse criar(ClienteRequest request) {
         if (clienteRepository.existsByCpf(request.cpf())) {
             throw new ConflictException("Já existe um cliente com o CPF informado");
         }
+
+        validarCpfSimples(request.cpf());
 
         Cliente cliente = clienteMapper.toEntity(request);
         cliente.setDataCriacao(OffsetDateTime.now());

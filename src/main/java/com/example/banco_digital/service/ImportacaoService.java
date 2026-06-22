@@ -21,7 +21,7 @@ import java.util.List;
 public class ImportacaoService {
 
     private static final Logger log = LoggerFactory.getLogger(ImportacaoService.class);
-    private static final String SEPARADOR = "[;,\\t]";
+    private static final String SEPARADOR = "[;\\t]";
 
     private final ClienteService clienteService;
     private final ContaService contaService;
@@ -85,7 +85,7 @@ public class ImportacaoService {
     private void processarLinhaCliente(String linha) {
         String[] campos = linha.split(SEPARADOR, -1);
 
-        if (campos.length < 3) {
+        if (campos.length < 2) {
             throw new IllegalArgumentException("Esperado 'nome;cpf'");
         }
 
@@ -98,17 +98,19 @@ public class ImportacaoService {
     private void processarLinhaConta(String linha) {
         String[] campos = linha.split(SEPARADOR, -1);
 
-        if (campos.length < 2) {
-            throw new IllegalArgumentException("Esperado 'numeroConta;clienteId;saldoInicial'");
+        if (campos.length < 6) {
+            throw new IllegalArgumentException("Esperado 'clienteId;saldoInicial;codigoBanco;numeroConta;digitoConta;numeroAgencia;digitoAgencia'");
         }
 
-        String numeroConta = campos[0].trim();
-        Long clienteId = parseLong(campos[1].trim(), "clienteId");
-        BigDecimal saldoInicial = campos.length >= 3 && !campos[2].isBlank()
-                ? parseValor(campos[2].trim())
-                : BigDecimal.ZERO;
+        Long clienteId = parseLong(campos[0].trim(), "clienteId");
+        BigDecimal saldoInicial = getValor(campos[1].trim());
+        String codigoBanco = campos[2].trim();
+        String numeroConta = campos[3].trim();
+        String digitoConta = campos[4].trim();
+        String numeroAgencia = campos[5].trim();
+        String digitoAgencia = campos[6].trim();
 
-        contaService.criar(new ContaRequest(numeroConta, clienteId, saldoInicial));
+        contaService.criar(new ContaRequest(codigoBanco, numeroConta, digitoConta, numeroAgencia, digitoAgencia, clienteId, saldoInicial));
     }
 
     private void validarArquivo(MultipartFile arquivo) {
@@ -117,7 +119,7 @@ public class ImportacaoService {
         }
 
         String nome = arquivo.getOriginalFilename();
-        
+
         if (nome != null) {
             String lower = nome.toLowerCase();
             if (!lower.endsWith(".csv") && !lower.endsWith(".txt")) {
@@ -137,6 +139,12 @@ public class ImportacaoService {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(campo + " inválido: '" + valor + "'");
         }
+    }
+
+    private BigDecimal getValor(String valor) {
+        if (valor.isBlank()) return BigDecimal.ZERO;
+        BigDecimal parsedValor = parseValor(valor);
+        return parsedValor.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : parsedValor;
     }
 
     private BigDecimal parseValor(String valor) {

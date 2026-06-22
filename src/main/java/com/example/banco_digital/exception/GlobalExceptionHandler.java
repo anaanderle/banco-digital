@@ -54,12 +54,20 @@ public class GlobalExceptionHandler {
         List<CampoInvalido> campos = ex.getConstraintViolations().stream()
                 .map(v -> new CampoInvalido(v.getPropertyPath().toString(), v.getMessage()))
                 .toList();
+        log.warn("Erro de validacao: {}", ex.getMessage());
         return build(HttpStatus.BAD_REQUEST, "Erro de validação", campos);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
+        log.warn("Cordo da requisicao invalido ou malformado: {}", ex.getMessage());
         return build(HttpStatus.BAD_REQUEST, "Corpo da requisição inválido ou malformado", null);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadable(IllegalArgumentException ex) {
+        log.warn("Argumento ilegal: {}", ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), null);
     }
 
     @ExceptionHandler(Exception.class)

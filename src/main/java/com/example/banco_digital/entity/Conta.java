@@ -1,19 +1,10 @@
 package com.example.banco_digital.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.Version;
+import jakarta.persistence.*;
+import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Table(name = "conta")
@@ -28,8 +19,20 @@ public class Conta {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "numero_conta", nullable = false, unique = true)
+    @Column(name = "codigo_banco", nullable = false)
+    private String codigoBanco;
+
+    @Column(name = "numero_conta", nullable = false)
     private String numeroConta;
+
+    @Column(name = "digito_conta", nullable = false)
+    private String digitoConta;
+
+    @Column(name = "numero_agencia", nullable = false)
+    private String numeroAgencia;
+
+    @Column(name = "digito_agencia")
+    private String digitoAgencia;
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal saldo;
