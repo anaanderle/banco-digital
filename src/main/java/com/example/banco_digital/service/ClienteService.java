@@ -7,10 +7,11 @@ import com.example.banco_digital.exception.ConflictException;
 import com.example.banco_digital.exception.ResourceNotFoundException;
 import com.example.banco_digital.mapper.ClienteMapper;
 import com.example.banco_digital.repository.ClienteRepository;
-import java.time.OffsetDateTime;
-import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.OffsetDateTime;
+import java.util.List;
 
 @Service
 public class ClienteService {
@@ -26,10 +27,12 @@ public class ClienteService {
     @Transactional
     public ClienteResponse criar(ClienteRequest request) {
         if (clienteRepository.existsByCpf(request.cpf())) {
-            throw new ConflictException("Já existe cliente com o cpf informado");
+            throw new ConflictException("Já existe um cliente com o CPF informado");
         }
+
         Cliente cliente = clienteMapper.toEntity(request);
         cliente.setDataCriacao(OffsetDateTime.now());
+
         return clienteMapper.toResponse(clienteRepository.save(cliente));
     }
 
@@ -47,6 +50,6 @@ public class ClienteService {
 
     public Cliente buscarEntidade(Long id) {
         return clienteRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente nao encontrado: id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado: id " + id));
     }
 }

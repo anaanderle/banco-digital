@@ -1,21 +1,8 @@
 package com.example.banco_digital.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.example.banco_digital.dto.request.TransferenciaRequest;
 import com.example.banco_digital.dto.response.TransferenciaResponse;
-import com.example.banco_digital.entity.Conta;
-import com.example.banco_digital.entity.Historico;
-import com.example.banco_digital.entity.StatusTransacao;
-import com.example.banco_digital.entity.TipoMovimento;
-import com.example.banco_digital.entity.Transacao;
+import com.example.banco_digital.entity.*;
 import com.example.banco_digital.exception.BusinessException;
 import com.example.banco_digital.exception.ResourceNotFoundException;
 import com.example.banco_digital.mapper.TransacaoMapper;
@@ -23,9 +10,6 @@ import com.example.banco_digital.messaging.TransferenciaConcluidaApplicationEven
 import com.example.banco_digital.repository.ContaRepository;
 import com.example.banco_digital.repository.HistoricoRepository;
 import com.example.banco_digital.repository.TransacaoRepository;
-import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,17 +19,34 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
 class TransferenciaServiceTest {
 
-    @Mock private ContaRepository contaRepository;
-    @Mock private TransacaoRepository transacaoRepository;
-    @Mock private HistoricoRepository historicoRepository;
-    @Mock private TransacaoMapper transacaoMapper;
-    @Mock private IdempotencyService idempotencyService;
-    @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private ContaRepository contaRepository;
+    @Mock
+    private TransacaoRepository transacaoRepository;
+    @Mock
+    private HistoricoRepository historicoRepository;
+    @Mock
+    private TransacaoMapper transacaoMapper;
+    @Mock
+    private IdempotencyService idempotencyService;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
-    @InjectMocks private TransferenciaService transferenciaService;
+    @InjectMocks
+    private TransferenciaService transferenciaService;
 
     private Conta conta(Long id, String saldo) {
         return Conta.builder()
@@ -60,12 +61,12 @@ class TransferenciaServiceTest {
 
     @Test
     @DisplayName("Transferencia valida debita a origem, credita o destino e persiste tudo")
-    void transferir_comSucesso_deveDebitarCreditarEPersistir() {
+    void transferirComSucessoDeveDebitarCreditarEPersistir() {
         Conta origem = conta(1L, "1000.00");
         Conta destino = conta(2L, "500.00");
         TransferenciaRequest request = new TransferenciaRequest(1L, 2L, new BigDecimal("100.00"));
 
-        when(contaRepository.findByIdsForUpdate(anyList())).thenReturn(List.of(origem, destino));
+        when(contaRepository.findByIdInOrderByIdAsc(anyList())).thenReturn(List.of(origem, destino));
         when(transacaoRepository.save(any(Transacao.class))).thenAnswer(inv -> {
             Transacao t = inv.getArgument(0);
             t.setId(99L);
@@ -100,12 +101,12 @@ class TransferenciaServiceTest {
 
     @Test
     @DisplayName("Saldo insuficiente lanca BusinessException e nao persiste nada")
-    void transferir_saldoInsuficiente_deveLancarBusiness() {
+    void transferirSaldoInsuficienteDeveLancarBusiness() {
         Conta origem = conta(1L, "50.00");
         Conta destino = conta(2L, "0.00");
         TransferenciaRequest request = new TransferenciaRequest(1L, 2L, new BigDecimal("100.00"));
 
-        when(contaRepository.findByIdsForUpdate(anyList())).thenReturn(List.of(origem, destino));
+        when(contaRepository.findByIdInOrderByIdAsc(anyList())).thenReturn(List.of(origem, destino));
 
         assertThatThrownBy(() -> transferenciaService.transferir(request, null))
                 .isInstanceOf(BusinessException.class)
@@ -118,24 +119,24 @@ class TransferenciaServiceTest {
 
     @Test
     @DisplayName("Transferencia para a mesma conta e barrada antes de qualquer acesso ao banco")
-    void transferir_mesmaConta_deveLancarBusiness() {
+    void transferirMesmaContaDeveLancarBusiness() {
         TransferenciaRequest request = new TransferenciaRequest(1L, 1L, new BigDecimal("100.00"));
 
         assertThatThrownBy(() -> transferenciaService.transferir(request, null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("mesma");
 
-        verify(contaRepository, never()).findByIdsForUpdate(anyList());
+        verify(contaRepository, never()).findByIdInOrderByIdAsc(anyList());
         verify(transacaoRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("Conta de origem inexistente lanca ResourceNotFoundException")
-    void transferir_origemInexistente_deveLancarNotFound() {
+    void transferirOrigemInexistenteDeveLancarNotFound() {
         Conta destino = conta(2L, "500.00");
         TransferenciaRequest request = new TransferenciaRequest(1L, 2L, new BigDecimal("100.00"));
 
-        when(contaRepository.findByIdsForUpdate(anyList())).thenReturn(List.of(destino));
+        when(contaRepository.findByIdInOrderByIdAsc(anyList())).thenReturn(List.of(destino));
 
         assertThatThrownBy(() -> transferenciaService.transferir(request, null))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -147,13 +148,13 @@ class TransferenciaServiceTest {
 
     @Test
     @DisplayName("Valor menor ou igual a zero e barrado pela checagem defensiva")
-    void transferir_valorNaoPositivo_deveLancarBusiness() {
+    void transferirValorNaoPositivoDeveLancarBusiness() {
         TransferenciaRequest request = new TransferenciaRequest(1L, 2L, BigDecimal.ZERO);
 
         assertThatThrownBy(() -> transferenciaService.transferir(request, null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("maior que zero");
 
-        verify(contaRepository, never()).findByIdsForUpdate(anyList());
+        verify(contaRepository, never()).findByIdInOrderByIdAsc(anyList());
     }
 }

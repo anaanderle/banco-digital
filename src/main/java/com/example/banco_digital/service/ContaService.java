@@ -9,9 +9,10 @@ import com.example.banco_digital.exception.ResourceNotFoundException;
 import com.example.banco_digital.mapper.ContaMapper;
 import com.example.banco_digital.repository.ClienteRepository;
 import com.example.banco_digital.repository.ContaRepository;
-import java.time.OffsetDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.OffsetDateTime;
 
 @Service
 public class ContaService {
@@ -22,7 +23,8 @@ public class ContaService {
 
     public ContaService(ContaRepository contaRepository,
                         ClienteRepository clienteRepository,
-                        ContaMapper contaMapper) {
+                        ContaMapper contaMapper
+    ) {
         this.contaRepository = contaRepository;
         this.clienteRepository = clienteRepository;
         this.contaMapper = contaMapper;
@@ -33,11 +35,14 @@ public class ContaService {
         if (!clienteRepository.existsById(request.clienteId())) {
             throw new ResourceNotFoundException("Cliente não encontrado: id " + request.clienteId());
         }
+
         if (contaRepository.existsByNumeroConta(request.numeroConta())) {
             throw new ConflictException("Já existe conta com o número informado");
         }
+
         Conta conta = contaMapper.toEntity(request);
         conta.setDataCriacao(OffsetDateTime.now());
+
         return contaMapper.toResponse(contaRepository.save(conta));
     }
 

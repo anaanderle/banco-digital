@@ -2,32 +2,28 @@ package com.example.banco_digital.service;
 
 import com.example.banco_digital.dto.request.TransferenciaRequest;
 import com.example.banco_digital.dto.response.TransferenciaResponse;
-import com.example.banco_digital.entity.Conta;
-import com.example.banco_digital.entity.Historico;
-import com.example.banco_digital.entity.IdempotencyRecord;
-import com.example.banco_digital.entity.StatusTransacao;
-import com.example.banco_digital.entity.TipoMovimento;
-import com.example.banco_digital.entity.Transacao;
+import com.example.banco_digital.entity.*;
 import com.example.banco_digital.exception.BusinessException;
 import com.example.banco_digital.exception.ResourceNotFoundException;
+import com.example.banco_digital.helper.CorrelationIdHolder;
 import com.example.banco_digital.mapper.TransacaoMapper;
 import com.example.banco_digital.messaging.TransferenciaConcluidaApplicationEvent;
 import com.example.banco_digital.messaging.TransferenciaRealizadaEvent;
 import com.example.banco_digital.repository.ContaRepository;
 import com.example.banco_digital.repository.HistoricoRepository;
 import com.example.banco_digital.repository.TransacaoRepository;
-import com.example.banco_digital.util.CorrelationIdHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TransferenciaService {
@@ -46,7 +42,8 @@ public class TransferenciaService {
                                 HistoricoRepository historicoRepository,
                                 TransacaoMapper transacaoMapper,
                                 IdempotencyService idempotencyService,
-                                ApplicationEventPublisher eventPublisher) {
+                                ApplicationEventPublisher eventPublisher
+    ) {
         this.contaRepository = contaRepository;
         this.transacaoRepository = transacaoRepository;
         this.historicoRepository = historicoRepository;
@@ -57,18 +54,21 @@ public class TransferenciaService {
 
     @Transactional
     public TransferenciaResponse transferir(TransferenciaRequest request, String idempotencyKey) {
-        validarRegrasBasicas(request);
+        validarRequisicao(request);
 
         String requestHash = null;
         IdempotencyRecord claim = null;
+
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
             requestHash = idempotencyService.hash(request);
             var concluida = idempotencyService.buscarConcluida(idempotencyKey, requestHash);
+
             if (concluida.isPresent()) {
                 log.info("Idempotency-Key {} ja processada; devolvendo resposta original", idempotencyKey);
                 return idempotencyService.desserializar(
                         concluida.get().getResponseBody(), TransferenciaResponse.class);
             }
+
             claim = idempotencyService.reivindicar(idempotencyKey, requestHash);
         }
 
@@ -77,6 +77,7 @@ public class TransferenciaService {
         if (claim != null) {
             idempotencyService.concluir(claim, 201, idempotencyService.serializar(response));
         }
+
         return response;
     }
 
@@ -85,20 +86,22 @@ public class TransferenciaService {
         Long destinoId = request.contaDestinoId();
         BigDecimal valor = request.valor();
 
-        List<Long> idsOrdenados = origemId < destinoId
-                ? List.of(origemId, destinoId)
-                : List.of(destinoId, origemId);
-        Map<Long, Conta> contas = contaRepository.findByIdsForUpdate(idsOrdenados).stream()
+        List<Long> idsOrdenados = origemId < destinoId ? List.of(origemId, destinoId) : List.of(destinoId, origemId);
+
+        Map<Long, Conta> contas = contaRepository.findByIdInOrderByIdAsc(idsOrdenados).stream()
                 .collect(Collectors.toMap(Conta::getId, Function.identity()));
 
         Conta origem = contas.get(origemId);
         Conta destino = contas.get(destinoId);
+
         if (origem == null) {
             throw new ResourceNotFoundException("Conta de origem não encontrada: id " + origemId);
         }
+
         if (destino == null) {
             throw new ResourceNotFoundException("Conta de destino não encontrada: id " + destinoId);
         }
+
         if (origem.getSaldo().compareTo(valor) < 0) {
             throw new BusinessException("Saldo insuficiente na conta de origem");
         }
@@ -134,7 +137,7 @@ public class TransferenciaService {
         return transacaoMapper.toResponse(transacao);
     }
 
-    private void validarRegrasBasicas(TransferenciaRequest request) {
+    private void validarRequisicao(TransferenciaRequest request) {
         if (request.contaOrigemId().equals(request.contaDestinoId())) {
             throw new BusinessException("Conta de origem e destino não podem ser a mesma");
         }
@@ -146,7 +149,8 @@ public class TransferenciaService {
 
     private Historico novoHistorico(Long contaId, TipoMovimento tipo, BigDecimal valor,
                                     BigDecimal saldoAnterior, BigDecimal saldoPosterior,
-                                    OffsetDateTime dataCriacao) {
+                                    OffsetDateTime dataCriacao
+    ) {
         return Historico.builder()
                 .contaId(contaId)
                 .tipoMovimento(tipo)

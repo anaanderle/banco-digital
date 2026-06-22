@@ -4,6 +4,11 @@ import com.example.banco_digital.dto.request.ClienteRequest;
 import com.example.banco_digital.dto.request.ContaRequest;
 import com.example.banco_digital.dto.response.ImportacaoResponse;
 import com.example.banco_digital.dto.response.ImportacaoResponse.ErroLinha;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -11,10 +16,6 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class ImportacaoService {
@@ -50,17 +51,22 @@ public class ImportacaoService {
             String linha;
             int numeroLinha = 0;
             boolean primeira = true;
+
             while ((linha = reader.readLine()) != null) {
                 numeroLinha++;
+
                 if (linha.isBlank()) {
                     continue;
                 }
+
                 if (primeira && pareceCabecalho(linha, headerHint)) {
                     primeira = false;
                     continue;
                 }
+
                 primeira = false;
                 total++;
+
                 try {
                     processor.processar(linha);
                     importados++;
@@ -72,31 +78,36 @@ public class ImportacaoService {
             throw new IllegalStateException("Falha ao ler o arquivo: " + e.getMessage(), e);
         }
 
-        log.info("Importação concluída: {} linhas, {} importadas, {} falhas",
-                total, importados, erros.size());
+        log.info("Importação concluída: {} linhas, {} importadas, {} falhas", total, importados, erros.size());
         return new ImportacaoResponse(total, importados, erros.size(), erros);
     }
 
     private void processarLinhaCliente(String linha) {
         String[] campos = linha.split(SEPARADOR, -1);
-        if (campos.length < 2) {
+
+        if (campos.length < 3) {
             throw new IllegalArgumentException("Esperado 'nome;cpf'");
         }
+
         String nome = campos[0].trim();
         String cpf = campos[1].trim();
+
         clienteService.criar(new ClienteRequest(nome, cpf));
     }
 
     private void processarLinhaConta(String linha) {
         String[] campos = linha.split(SEPARADOR, -1);
+
         if (campos.length < 2) {
             throw new IllegalArgumentException("Esperado 'numeroConta;clienteId;saldoInicial'");
         }
+
         String numeroConta = campos[0].trim();
         Long clienteId = parseLong(campos[1].trim(), "clienteId");
         BigDecimal saldoInicial = campos.length >= 3 && !campos[2].isBlank()
                 ? parseValor(campos[2].trim())
                 : BigDecimal.ZERO;
+
         contaService.criar(new ContaRequest(numeroConta, clienteId, saldoInicial));
     }
 
@@ -104,7 +115,9 @@ public class ImportacaoService {
         if (arquivo == null || arquivo.isEmpty()) {
             throw new IllegalArgumentException("Arquivo vazio ou ausente");
         }
+
         String nome = arquivo.getOriginalFilename();
+        
         if (nome != null) {
             String lower = nome.toLowerCase();
             if (!lower.endsWith(".csv") && !lower.endsWith(".txt")) {

@@ -1,4 +1,4 @@
-package com.example.banco_digital.util;
+package com.example.banco_digital.helper;
 
 import org.slf4j.MDC;
 

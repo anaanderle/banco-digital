@@ -1,8 +1,5 @@
 package com.example.banco_digital.integration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-
 import com.example.banco_digital.TestcontainersConfiguration;
 import com.example.banco_digital.dto.request.ClienteRequest;
 import com.example.banco_digital.dto.request.ContaRequest;
@@ -10,13 +7,13 @@ import com.example.banco_digital.dto.request.TransferenciaRequest;
 import com.example.banco_digital.dto.response.TransferenciaResponse;
 import com.example.banco_digital.entity.StatusTransacao;
 import com.example.banco_digital.entity.TipoMovimento;
+import com.example.banco_digital.helper.ClienteFactory;
+import com.example.banco_digital.helper.TransferenciaApiClient;
 import com.example.banco_digital.repository.ContaRepository;
 import com.example.banco_digital.repository.HistoricoRepository;
 import com.example.banco_digital.repository.TransacaoRepository;
 import com.example.banco_digital.service.ClienteService;
 import com.example.banco_digital.service.ContaService;
-import java.math.BigDecimal;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,23 +21,36 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.math.BigDecimal;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class TransferenciaIntegrationTest {
 
-    @Autowired private MockMvc rest;
-    @Autowired private JsonMapper mapper;
-    @Autowired private ClienteService clienteService;
-    @Autowired private ContaService contaService;
-    @Autowired private ContaRepository contaRepository;
-    @Autowired private TransacaoRepository transacaoRepository;
-    @Autowired private HistoricoRepository historicoRepository;
+    @Autowired
+    private MockMvc rest;
+    @Autowired
+    private JsonMapper mapper;
+    @Autowired
+    private ClienteService clienteService;
+    @Autowired
+    private ContaService contaService;
+    @Autowired
+    private ContaRepository contaRepository;
+    @Autowired
+    private TransacaoRepository transacaoRepository;
+    @Autowired
+    private HistoricoRepository historicoRepository;
+    @Autowired
+    private TransferenciaApiClient transferenciaApiClient;
 
     private Long contaOrigemId;
     private Long contaDestinoId;
@@ -51,7 +61,7 @@ class TransferenciaIntegrationTest {
         transacaoRepository.deleteAll();
         contaRepository.deleteAll();
 
-        Long clienteId = clienteService.criar(new ClienteRequest("Maria Silva", gerarCpf())).id();
+        Long clienteId = clienteService.criar(new ClienteRequest("Maria Silva", ClienteFactory.gerarCpf())).id();
         contaOrigemId = contaService.criar(
                 new ContaRequest("ORIG-" + System.nanoTime(), clienteId, new BigDecimal("1000.00"))).id();
         contaDestinoId = contaService.criar(
@@ -60,10 +70,10 @@ class TransferenciaIntegrationTest {
 
     @Test
     @DisplayName("Transferencia com sucesso atualiza saldos, cria 2 historicos e persiste a transacao")
-    void transferencia_comSucesso() throws Exception {
+    void transferenciaComSucesso() throws Exception {
         TransferenciaRequest req = new TransferenciaRequest(contaOrigemId, contaDestinoId, new BigDecimal("300.00"));
 
-        MvcResult resp = postTransferencia(req, null);
+        MvcResult resp = transferenciaApiClient.criar(req, null);
 
         int statusCode = resp.getResponse().getStatus();
 
@@ -96,10 +106,10 @@ class TransferenciaIntegrationTest {
 
     @Test
     @DisplayName("Conta de destino inexistente retorna 404 e nao altera saldo")
-    void transferencia_contaInexistente_retorna404() throws Exception {
+    void transferenciaContaInexistenteRetorna404() throws Exception {
         TransferenciaRequest req = new TransferenciaRequest(contaOrigemId, 999_999L, new BigDecimal("100.00"));
 
-        MvcResult resp = postTransferencia(req, null);
+        MvcResult resp = transferenciaApiClient.criar(req, null);
 
         int statusCode = resp.getResponse().getStatus();
 
@@ -111,10 +121,10 @@ class TransferenciaIntegrationTest {
 
     @Test
     @DisplayName("Saldo insuficiente retorna 422 e nao altera saldo")
-    void transferencia_saldoInsuficiente_retorna422() throws Exception {
+    void transferenciaSaldoInsuficienteRetorna422() throws Exception {
         TransferenciaRequest req = new TransferenciaRequest(contaOrigemId, contaDestinoId, new BigDecimal("5000.00"));
 
-        MvcResult resp = postTransferencia(req, null);
+        MvcResult resp = transferenciaApiClient.criar(req, null);
 
         int statusCode = resp.getResponse().getStatus();
 
@@ -126,10 +136,10 @@ class TransferenciaIntegrationTest {
 
     @Test
     @DisplayName("Transferencia para a mesma conta retorna 422")
-    void transferencia_mesmaConta_retorna422() throws Exception {
+    void transferenciaMesmaContaRetorna422() throws Exception {
         TransferenciaRequest req = new TransferenciaRequest(contaOrigemId, contaOrigemId, new BigDecimal("100.00"));
 
-        MvcResult resp = postTransferencia(req, null);
+        MvcResult resp = transferenciaApiClient.criar(req, null);
 
         int statusCode = resp.getResponse().getStatus();
 
@@ -139,10 +149,10 @@ class TransferenciaIntegrationTest {
 
     @Test
     @DisplayName("Valor nao positivo e barrado pela Bean Validation com 400")
-    void transferencia_valorInvalido_retorna400() throws Exception {
+    void transferenciaValorInvalidoRetorna400() throws Exception {
         TransferenciaRequest req = new TransferenciaRequest(contaOrigemId, contaDestinoId, new BigDecimal("-1.00"));
 
-        MvcResult resp = postTransferencia(req, null);
+        MvcResult resp = transferenciaApiClient.criar(req, null);
 
         int statusCode = resp.getResponse().getStatus();
 
@@ -152,13 +162,13 @@ class TransferenciaIntegrationTest {
 
     @Test
     @DisplayName("Mesma Idempotency-Key nao reprocessa: debita uma vez e devolve a resposta original")
-    void transferencia_idempotente_naoReprocessa() throws Exception {
+    void transferenciaIdempotenteNaoReprocessa() throws Exception {
         TransferenciaRequest req = new TransferenciaRequest(contaOrigemId, contaDestinoId, new BigDecimal("100.00"));
 
         String idempotencyKey = "chave-fixa-123";
-        MvcResult primeira = postTransferencia(req, idempotencyKey);
+        MvcResult primeira = transferenciaApiClient.criar(req, idempotencyKey);
         int primeiraStatusCode = primeira.getResponse().getStatus();
-        MvcResult segunda = postTransferencia(req, idempotencyKey);
+        MvcResult segunda = transferenciaApiClient.criar(req, idempotencyKey);
         int segundaStatusCode = segunda.getResponse().getStatus();
 
         TransferenciaResponse primeirabody = mapper.readValue(
@@ -177,19 +187,5 @@ class TransferenciaIntegrationTest {
         assertThat(contaRepository.findById(contaOrigemId).orElseThrow().getSaldo())
                 .isEqualByComparingTo("900.00");
         assertThat(transacaoRepository.findAll()).hasSize(1);
-    }
-
-    private MvcResult postTransferencia(TransferenciaRequest request, String idempotencyKey) throws Exception {
-        return rest.perform(
-                post("/transferencias")
-                        .header("Idempotency-Key", idempotencyKey)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(request))
-        ).andReturn();
-    }
-
-    private String gerarCpf() {
-        long n = Math.abs(System.nanoTime() % 100_000_000_000L);
-        return String.format("%011d", n);
     }
 }
