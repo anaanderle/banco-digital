@@ -65,7 +65,7 @@ A aplicação será compilada e serão iniciados os serviços necessários para 
 
 * PostgreSQL
 * Kafka
-* RedPanda
+* Redpanda
 * Prometheus
 * Grafana
 
@@ -87,6 +87,16 @@ http://localhost:8080/swagger-ui.html
 
 Através do Swagger é possível visualizar todos os endpoints disponíveis, exemplos de requisições, respostas e códigos de
 erro.
+
+---
+
+# Acesso ao tópico Kafka
+
+```text
+http://localhost:8081/overview
+```
+
+Através do Redpanda é possível visualizar as mensagens postadas no tópico Kafka.
 
 ---
 
