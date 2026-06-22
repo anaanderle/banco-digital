@@ -1,0 +1,7 @@
+dev/data
+data
+**/data
+**/postgres
+.git
+.idea
+*.log
