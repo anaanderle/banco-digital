@@ -282,3 +282,13 @@ Foi disponibilizado um arquivo `docker-compose.yaml` para facilitar a configura�
 
 Com apenas um comando é possível iniciar toda a infraestrutura necessária para execução e testes da aplicação, reduzindo
 o esforço de setup e garantindo maior padronização entre ambientes.
+
+---
+
+# Possíveis evoluções futuras
+
+- Criar sistema de versionamento mais robusto para as migrations
+- Criar consumidor para disparo das notificações de transferência
+- Melhorar dashboard do Grafana
+- Adicionar visualização dos logs do sistema
+- Criar endpoints de listagem paginados
