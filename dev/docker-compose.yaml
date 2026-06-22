@@ -1,6 +1,24 @@
 name: banco-digital
 
 services:
+  banco-digital:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: banco-digital
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/banco_digital
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: secret
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - banco-digital
+
   postgres:
     image: postgres:15
     container_name: banco-digital-db
@@ -8,15 +26,42 @@ services:
       POSTGRES_DB: banco_digital
       POSTGRES_USER: user
       POSTGRES_PASSWORD: secret
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d banco_digital -h localhost"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+    volumes:
+      - banco-digital-postgres-data:/var/lib/postgresql/data
+    networks:
+      - banco-digital
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: banco-digital-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - banco-digital
+
+  redpanda-console:
+    image: redpandadata/console:latest
+    container_name: banco-digital-redpanda
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_BROKERS: kafka:9092
+    depends_on:
+      - kafka
     networks:
       - banco-digital
 
@@ -27,6 +72,7 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
     networks:
       - banco-digital
 
@@ -35,13 +81,20 @@ services:
     container_name: grafana
     ports:
       - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
     networks:
       - banco-digital
 
 networks:
   banco-digital:
-    name: banco-digital
     driver: bridge
+
+volumes:
+  banco-digital-postgres-data:
+  grafana-data:
+  prometheus-data:
